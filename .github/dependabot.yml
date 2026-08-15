@@ -1,0 +1,14 @@
+version: 2
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "direct"
+    ignore:
+      # Newer quic-go releases raise the minimum Go version. Keep updates within
+      # the Go 1.22 compatibility policy documented for this release line.
+      - dependency-name: "github.com/quic-go/quic-go"
+        versions: [">=0.50.0"]
