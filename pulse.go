@@ -108,11 +108,46 @@ func (c control) MarshalJSON() ([]byte, error) {
 	})
 }
 
+type controlStream interface {
+	io.Reader
+	io.Writer
+	io.Closer
+	SetReadDeadline(time.Time) error
+	SetWriteDeadline(time.Time) error
+}
+
+type receiveStream interface {
+	io.Reader
+	SetReadDeadline(time.Time) error
+}
+
+type pulseConnection interface {
+	OpenStreamSync(context.Context) (controlStream, error)
+	AcceptUniStream(context.Context) (receiveStream, error)
+	ReceiveDatagram(context.Context) ([]byte, error)
+	CloseWithError(quic.ApplicationErrorCode, string) error
+}
+
+// quicConnAdapter keeps the SDK's transport boundary mockable while adapting
+// quic-go's concrete connection and stream types to the narrow interfaces used
+// below.
+type quicConnAdapter struct {
+	*quic.Conn
+}
+
+func (c *quicConnAdapter) OpenStreamSync(ctx context.Context) (controlStream, error) {
+	return c.Conn.OpenStreamSync(ctx)
+}
+
+func (c *quicConnAdapter) AcceptUniStream(ctx context.Context) (receiveStream, error) {
+	return c.Conn.AcceptUniStream(ctx)
+}
+
 // Client is a connected Pulse client. A QUIC connection can carry exactly one
 // initial feed subscription; call UpdateFilter on that subscription for later
 // changes, or create another Client for another feed.
 type Client struct {
-	conn              quic.Connection
+	conn              pulseConnection
 	token             string
 	ackTimeout        time.Duration
 	preambleTimeout   time.Duration
@@ -139,7 +174,7 @@ func Connect(ctx context.Context, addr string, options ...Option) (*Client, erro
 		return nil, wrapConnectionError("dial "+addr, err)
 	}
 	return &Client{
-		conn:             conn,
+		conn:             &quicConnAdapter{Conn: conn},
 		token:            cfg.token,
 		ackTimeout:       cfg.ackTimeout,
 		preambleTimeout:  cfg.preambleTimeout,
@@ -250,7 +285,7 @@ func (c *Client) sendControl(ctx context.Context, f Filter, full bool, fields []
 // later UpdateFilter call, which is why token is a parameter rather than
 // always c.token: an update never re-sends the token (the first message is
 // what admits the connection; updates ride the already-admitted connection).
-func controlRoundTrip(ctx context.Context, conn quic.Connection, token string, f Filter, full bool, fields []string, initial bool, timeout time.Duration) (*Ack, error) {
+func controlRoundTrip(ctx context.Context, conn pulseConnection, token string, f Filter, full bool, fields []string, initial bool, timeout time.Duration) (*Ack, error) {
 	deadline := boundedDeadline(ctx, timeout)
 	roundTripCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
@@ -418,7 +453,7 @@ type SigFirstSub struct {
 	// conn is nil for the test-only newSigFirstSub construction (no real
 	// connection to update against); non-nil whenever this came from
 	// Client.SubscribeSigFirst.
-	conn          quic.Connection
+	conn          pulseConnection
 	ch            chan SigFirstItem
 	queueCapacity int
 	ackTimeout    time.Duration
@@ -656,8 +691,8 @@ func (s *SigFirstSub) Next(ctx context.Context) (SigFirstItem, error) {
 
 // FullSub is a live full-tx subscription.
 type FullSub struct {
-	conn       quic.Connection
-	rs         quic.ReceiveStream
+	conn       pulseConnection
+	rs         receiveStream
 	ackTimeout time.Duration
 	heartbeat  atomic.Pointer[heartbeatState]
 }

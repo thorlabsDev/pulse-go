@@ -142,6 +142,6 @@ requires credential correction. Do not reconnect-loop on codes 1, 4, or 5.
 
 ## Compatibility
 
-This release speaks Pulse wire v2 only and requires Go 1.22 or newer. See
+This release speaks Pulse wire v2 only and requires Go 1.25 or newer. See
 [COMPATIBILITY.md](COMPATIBILITY.md) for the wire/package compatibility policy
 and [CHANGELOG.md](CHANGELOG.md) for release-facing changes.

@@ -8,8 +8,8 @@ Pulse wire version.
 
 - Clarifies public error documentation without changing the Go API or wire
   format.
-- Keeps automated dependency updates compatible with the supported Go 1.22
-  baseline.
+- Updates the minimum supported Go version to 1.25 and refreshes QUIC and
+  transitive security dependencies to maintained releases.
 
 ## 0.1.0 - 2026-08-16
 

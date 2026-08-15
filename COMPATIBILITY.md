@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-- Go: 1.22 and newer.
+- Go: 1.25 and newer.
 - Pulse wire protocol: v2 only.
 - QUIC application protocol: ALPN `pulse` over TLS 1.3.
 

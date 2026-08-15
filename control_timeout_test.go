@@ -6,21 +6,19 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/quic-go/quic-go"
 )
 
 type scriptedControlConnection struct {
-	quic.Connection
-	stream quic.Stream
+	pulseConnection
+	stream controlStream
 }
 
-func (c *scriptedControlConnection) OpenStreamSync(context.Context) (quic.Stream, error) {
+func (c *scriptedControlConnection) OpenStreamSync(context.Context) (controlStream, error) {
 	return c.stream, nil
 }
 
 type scriptedControlStream struct {
-	quic.Stream
+	controlStream
 	response *bytes.Reader
 }
 
@@ -34,11 +32,11 @@ func (s *scriptedControlStream) SetWriteDeadline(time.Time) error { return nil }
 func (s *scriptedControlStream) SetReadDeadline(time.Time) error  { return nil }
 
 type deadlineBlockingConnection struct {
-	quic.Connection
+	pulseConnection
 	deadline time.Time
 }
 
-func (c *deadlineBlockingConnection) OpenStreamSync(ctx context.Context) (quic.Stream, error) {
+func (c *deadlineBlockingConnection) OpenStreamSync(ctx context.Context) (controlStream, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return nil, errors.New("control stream context has no deadline")
