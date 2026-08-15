@@ -333,10 +333,8 @@ type tlvEntry struct {
 }
 
 // parseTLVs parses a TLV trailer to the end of src: `u8 type | u16 LE len |
-// value` records. Unknown types are returned to the caller rather than
-// rejected — skipping them is what makes new fields additive. A duplicate
-// type IS rejected: silently preferring first or last would make decoders
-// disagree about the same frame.
+// value` records. Unknown types are returned to the caller so new fields
+// remain additive. Duplicate types are rejected.
 func parseTLVs(src []byte) ([]tlvEntry, error) {
 	var out []tlvEntry
 	off := 0

@@ -4,6 +4,13 @@ All notable changes to the standalone Pulse Go SDK are documented here. The
 project follows semantic versioning; the Go package version is independent of
 Pulse wire version.
 
+## 0.1.1 - 2026-08-16
+
+- Clarifies public error documentation without changing the Go API or wire
+  format.
+- Keeps automated dependency updates compatible with the supported Go 1.22
+  baseline.
+
 ## 0.1.0 - 2026-08-16
 
 ### Added

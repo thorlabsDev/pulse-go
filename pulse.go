@@ -13,12 +13,10 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-// ErrBadPreamble is returned when the full-tx stream's opening bytes were not
-// Preamble — the strongest signal available that this client is not actually
-// talking to a wire v2 server (or the stream was corrupted in transit).
-// Deliberately its own error: never folded into ErrBadFrame, and never
-// silently skipped — the preamble is the one place a client confirms it is
-// speaking the protocol it thinks it is.
+// ErrBadPreamble is returned when the full-tx stream's opening bytes do not
+// match Preamble. The peer is not serving wire v2, or the stream was corrupted
+// in transit. It remains distinct from ErrBadFrame so callers can identify a
+// protocol mismatch during setup.
 var ErrBadPreamble = errors.New("pulseclient: bad stream preamble: this server is not speaking pulse wire v2")
 
 // maxFullTxFrame is the allocation-safety ceiling applied to the outer frame
@@ -240,9 +238,8 @@ const PreambleTimeout = 10 * time.Second
 // server's ack. v is always negotiated to WireVersion; fields carries the
 // enrichment groups to opt into (e.g. ["alt"]) and is always sent as a JSON
 // array — nil is normalized to empty so the wire never carries a bare `null`
-// where the server expects a list. A `{"ok":false,...}` ack is surfaced as
-// *RejectedError, never silently treated as success — a bad filter or a bad
-// token must not look like "subscribed, but nothing is arriving yet".
+// where the server expects a list. A `{"ok":false,...}` ack returns a
+// *RejectedError.
 func (c *Client) sendControl(ctx context.Context, f Filter, full bool, fields []string) (*Ack, error) {
 	return controlRoundTrip(ctx, c.conn, c.token, f, full, fields, true, c.ackTimeout)
 }
@@ -392,17 +389,15 @@ func readAck(r io.Reader) (*Ack, error) {
 
 // SigQueueLen is the depth of the SDK's internal sig-first handoff queue.
 //
-// It exists because quic-go holds only 128 datagrams of its own and silently
-// drops new arrivals once that fills. The SDK therefore drains quic-go
+// It exists because quic-go holds only 128 datagrams and drops new arrivals
+// once that buffer fills. The SDK therefore drains quic-go
 // continuously into this queue instead of leaving datagrams there until the
 // caller happens to call Next.
 const SigQueueLen = 4096
 
 // NoSeqAssigned is the wire sentinel for a heartbeat's HighestSeq meaning
-// "nothing has been assigned to this subscriber yet". 0 is a real,
-// already-assigned sequence number (the FIRST delivery on any connection is
-// seq == 0), so 0 cannot double as "none" — conflating the two would tell a
-// client it already missed transaction 0 the instant it connected.
+// "nothing has been assigned to this subscriber yet". 0 is the first assigned
+// sequence number and cannot also represent "none".
 const NoSeqAssigned uint64 = ^uint64(0)
 
 // SigFirstItem is one sig-first delivery: the transaction's slot, this
@@ -417,8 +412,8 @@ type SigFirstItem struct {
 // SigFirstSub is a live sig-first subscription.
 //
 // A goroutine drains the connection into a bounded queue as fast as the network
-// delivers, so a slow Next loop costs you the OLDEST items (counted by
-// Dropped) rather than silently losing whatever arrives while you work.
+// delivers. When a slow Next loop fills the queue, the oldest items are
+// evicted and counted by Dropped.
 type SigFirstSub struct {
 	// conn is nil for the test-only newSigFirstSub construction (no real
 	// connection to update against); non-nil whenever this came from
@@ -679,9 +674,8 @@ type heartbeatState struct {
 // Ordered QUIC delivery does not guarantee that an upstream server queue never
 // discards a transaction before it is written to this stream.
 //
-// The stream's 6-byte preamble is read and verified here, before the
-// subscription is ever returned to the caller — a mismatch is a loud
-// ErrBadPreamble, never a silent skip.
+// The stream's 6-byte preamble is read and verified before the subscription is
+// returned. A mismatch returns ErrBadPreamble.
 func (c *Client) SubscribeFull(ctx context.Context, f Filter, fields ...string) (*FullSub, error) {
 	if err := c.claimSubscription(); err != nil {
 		return nil, err

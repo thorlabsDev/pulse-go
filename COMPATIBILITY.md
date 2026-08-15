@@ -20,7 +20,7 @@ minor release. Removing or changing exported Go API requires a major release.
 Unknown frame and datagram message types are skipped so that an additive wire
 extension does not break an older client. Malformed known messages, reserved
 flag use, duplicate TLVs, oversized frames, a bad preamble, and a negotiated
-version other than v2 fail loudly.
+version other than v2 return an error.
 
 ## Connection behavior
 
