@@ -1,10 +1,10 @@
 module github.com/thorlabsDev/pulse-go
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/mr-tron/base58 v1.3.0
-	github.com/quic-go/quic-go v0.61.0
+	github.com/quic-go/quic-go v0.62.0
 )
 
 require (
